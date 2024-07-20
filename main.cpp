@@ -241,6 +241,7 @@ static std::string translate_to_regex_string(const std::string &pattern)
     }
     return result;
 }
+// -- end of glob to regex translator --
 
 std::string to_lower(std::string sentence)
 {
