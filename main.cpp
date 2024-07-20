@@ -2,6 +2,7 @@
 #include <string>
 #include <regex>
 #include <functional>
+#include <stack>
 
 #if defined(_WIN32)
 // desktop win32 software
@@ -57,23 +58,25 @@ std::pair<std::vector<std::string>,std::vector<std::string>> get_files_and_dirs(
 std::vector<std::string> get_all_files(const std::string &dirname)
 {
     std::vector<std::string> allfiles;
-    std::vector<std::string> stack;
-    stack.push_back(dirname);
+    std::vector<std::pair<std::string, std::string>> stack;
+    stack.emplace_back(dirname, "");
 
     while (!stack.empty()) {
-        std::string current_dir = stack.back();
+        auto current = stack.back();
         stack.pop_back();
+        std::string current_dir = current.first;
+        std::string relative_path = current.second;
 
         auto result = get_files_and_dirs(current_dir);
-        auto files = result.first;
-        auto dirs = result.second;
+        auto const& files = result.first;
+        auto const& dirs = result.second;
 
         for (const auto &file : files) {
-            allfiles.push_back(current_dir + "\\" + file);
+            allfiles.push_back(relative_path + file);
         }
 
         for (const auto &dir : dirs) {
-            stack.push_back(current_dir + "\\" + dir);
+            stack.emplace_back(current_dir + "\\" + dir, relative_path + dir + "\\");
         }
     }
 
