@@ -313,6 +313,7 @@ std::vector<Pattern> description_to_patterns(const std::vector<std::string>& des
     std::vector<Pattern> patterns;
     for(std::string line : description)
     {
+        // TO-DO: also handle comments here
         if(line.empty())
             continue;
 
