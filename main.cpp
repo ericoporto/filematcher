@@ -6,6 +6,12 @@
 #include <vector>
 
 #if defined(_WIN32)
+const std::string path_sep = "\\";
+#else
+const std::string path_sep = "/";
+#endif
+
+#if defined(_WIN32)
 // desktop win32 software
 #include "Windows.h"
 
@@ -58,6 +64,7 @@ std::pair<std::vector<std::string>,std::vector<std::string>> get_files_and_dirs(
 #else
 #include <sys/types.h>
 #include <dirent.h>
+#include <fstream>
 
 std::pair<std::vector<std::string>, std::vector<std::string>> get_files_and_dirs(const std::string &dirname) {
     std::pair<std::vector<std::string>, std::vector<std::string>> result;
@@ -99,11 +106,6 @@ std::vector<std::string> get_all_files(const std::string &dirname)
     std::vector<std::string> allfiles;
     std::vector<std::pair<std::string, std::string>> stack;
     stack.emplace_back(dirname, "");
-#if defined(_WIN32)
-    std::string path_sep = "\\";
-#else
-    std::string path_sep = "/";
-#endif
 
     while (!stack.empty()) {
         auto current = stack.back();
@@ -127,18 +129,37 @@ std::vector<std::string> get_all_files(const std::string &dirname)
     return allfiles;
 }
 
+std::vector<std::string> read_file(const std::string& filename) {
+    std::vector<std::string> lines;
+    std::ifstream file(filename);
+
+    if (!file.is_open()) {
+        std::cerr << "Unable to open file: " << filename << std::endl;
+        return lines;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        lines.push_back(line);
+    }
+
+    file.close();
+    return lines;
+}
 
 int main(int argc, char *argv[]) {
     std::string path = ".";
     if (argc > 1) { path = argv[1]; }
 
+    std::cout << "Reads 'filematch.txt' and outputs all files from directory that matches description or all files if no 'filematch.txt' is found." << std::endl;
+
     std::vector<std::string> files = get_all_files(path);
+    std::vector<std::string> patterns_description = read_file(path + path_sep + "filematch.txt");
 
     for(std::string file : files)
     {
         printf("%s\n", file.c_str());
     }
 
-    std::cout << "Reads 'filematch.txt' and outputs all files from directory that matches description or nothing if no 'filematch.txt' is found." << std::endl;
     return 0;
 }
