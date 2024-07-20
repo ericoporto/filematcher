@@ -3,6 +3,8 @@
 #include <utility>
 #include <regex>
 #include <functional>
+#include <algorithm>
+#include <cctype>
 #include <vector>
 
 #if defined(_WIN32)
@@ -147,6 +149,165 @@ std::vector<std::string> read_file(const std::string& filename) {
     return lines;
 }
 
+enum PatternType {
+    eInclude = 0,
+    eExclude
+};
+
+struct Pattern {
+    PatternType Type;
+    std::regex Regex;
+};
+
+// -- glob to regex translator --
+// from : https://gist.github.com/alco/1869512
+/*
+ * Return a new string with all occurrences of 'from' replaced with 'to'
+ */
+std::string replace_all(const std::string &str, const char *from, const char *to)
+{
+    std::string result(str);
+    std::string::size_type
+            index = 0,
+            from_len = strlen(from),
+            to_len = strlen(to);
+    while ((index = result.find(from, index)) != std::string::npos) {
+        result.replace(index, from_len, to);
+        index += to_len;
+    }
+    return result;
+}
+
+/*
+ * Translate a shell pattern into a regular expression
+ * This is a direct translation of the algorithm defined in fnmatch.py.
+ */
+static std::string translate_to_regex_string(const std::string &pattern)
+{
+    int i = 0;
+    int n = (int)pattern.length();
+    std::string result;
+
+    while (i < n) {
+        char c = pattern[i];
+        ++i;
+
+        if (c == '*') {
+            result += ".*";
+        } else if (c == '?') {
+            result += '.';
+        } else if (c == '[') {
+            int j = i;
+            /*
+             * The following two statements check if the sequence we stumbled
+             * upon is '[]' or '[!]' because those are not valid character
+             * classes.
+             */
+            if (j < n && pattern[j] == '!')
+                ++j;
+            if (j < n && pattern[j] == ']')
+                ++j;
+            /*
+             * Look for the closing ']' right off the bat. If one is not found,
+             * escape the opening '[' and continue.  If it is found, process
+             * the contents of '[...]'.
+             */
+            while (j < n && pattern[j] != ']')
+                ++j;
+            if (j >= n) {
+                result += "\\[";
+            } else {
+                std::string stuff = replace_all(std::string(&pattern[i], j - i), "\\", "\\\\");
+                char first_char = pattern[i];
+                i = j + 1;
+                result += "[";
+                if (first_char == '!') {
+                    result += "^" + stuff.substr(1);
+                } else if (first_char == '^') {
+                    result += "\\" + stuff;
+                } else {
+                    result += stuff;
+                }
+                result += "]";
+            }
+        } else {
+            if (isalnum(c)) {
+                result += c;
+            } else {
+                result += "\\";
+                result += c;
+            }
+        }
+    }
+    return result;
+}
+
+std::string to_lower(std::string sentence)
+{
+    std::string out = sentence;
+    std::transform(sentence.begin(), sentence.end(), out.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+    return out;
+}
+
+std::vector<Pattern> description_to_patterns(const std::vector<std::string>& description)
+{
+    std::vector<Pattern> patterns;
+    for(std::string line : description)
+    {
+        if(line.empty())
+            continue;
+
+        Pattern p;
+        std::string l = line;
+        p.Type = eExclude;
+        if(line[0] == '!')
+        {
+            p.Type = eInclude;
+            l = line.substr(1);
+        }
+        l = to_lower(l); // for case insensitivity
+
+        std::string regex_txt = translate_to_regex_string(l);
+        p.Regex = regex_txt;
+        patterns.emplace_back(p);
+    }
+    return  patterns;
+}
+
+std::vector<std::string> matched_files(std::vector<std::string> files, std::vector<Pattern> patterns)
+{
+    std::vector<std::string> matches;
+    // if a file entry matches no pattern of the exclude type it should be included in the list
+    // if a file entry matches a pattern of the exclude type it should not be included unless a pattern of include type will match it after
+    // if a pattern of include type exists but a later pattern causes it to be excluded, it should be excluded.
+
+    for (const auto& file : files) {
+        bool include = true;
+        std::string lower_case_file = to_lower(file); // for case insensitivity
+
+        for (const auto& pattern : patterns) {
+            if (std::regex_match(lower_case_file, pattern.Regex)) {
+                if (pattern.Type == eExclude) {
+                    include = false;
+                    break;
+                }
+            } else {
+                if (pattern.Type == eInclude) {
+                    include = false;
+                    break;
+                }
+            }
+        }
+
+        if (include) {
+            matches.push_back(file);
+        }
+    }
+
+    return matches;
+}
+
 int main(int argc, char *argv[]) {
     std::string path = ".";
     if (argc > 1) { path = argv[1]; }
@@ -155,8 +316,10 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::string> files = get_all_files(path);
     std::vector<std::string> patterns_description = read_file(path + path_sep + "filematch.txt");
+    std::vector<Pattern> patterns = description_to_patterns(patterns_description);
+    std::vector<std::string> matches = matched_files(files, patterns);
 
-    for(std::string file : files)
+    for(const std::string& file : matches)
     {
         printf("%s\n", file.c_str());
     }
