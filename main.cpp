@@ -157,6 +157,8 @@ enum PatternType {
 struct Pattern {
     PatternType Type;
     std::regex Regex;
+    std::string TextualTranslatedPattern; // for debug purposes
+    std::string TextualOriginalPattern; // for debug purposes
 };
 
 // -- glob to regex translator --
@@ -269,7 +271,11 @@ std::vector<Pattern> description_to_patterns(const std::vector<std::string>& des
         }
         l = to_lower(l); // for case insensitivity
 
+
+
         std::string regex_txt = translate_to_regex_string(l);
+        p.TextualOriginalPattern = l;
+        p.TextualTranslatedPattern = regex_txt;
         p.Regex = regex_txt;
         patterns.emplace_back(p);
     }
@@ -291,12 +297,9 @@ std::vector<std::string> matched_files(std::vector<std::string> files, std::vect
             if (std::regex_match(lower_case_file, pattern.Regex)) {
                 if (pattern.Type == eExclude) {
                     include = false;
-                    break;
                 }
-            } else {
                 if (pattern.Type == eInclude) {
-                    include = false;
-                    break;
+                    include = true;
                 }
             }
         }
