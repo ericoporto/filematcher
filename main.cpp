@@ -1,8 +1,9 @@
 #include <iostream>
 #include <string>
+#include <utility>
 #include <regex>
 #include <functional>
-#include <stack>
+#include <vector>
 
 #if defined(_WIN32)
 // desktop win32 software
@@ -54,12 +55,55 @@ std::pair<std::vector<std::string>,std::vector<std::string>> get_files_and_dirs(
 
     return result;
 }
+#else
+#include <sys/types.h>
+#include <dirent.h>
+
+std::pair<std::vector<std::string>, std::vector<std::string>> get_files_and_dirs(const std::string &dirname) {
+    std::pair<std::vector<std::string>, std::vector<std::string>> result;
+    std::vector<std::string> files;
+    std::vector<std::string> dirs;
+
+    std::string path = dirname;
+    if (!path.empty() && path.back() != '/') {
+        path += '/';
+    }
+
+    DIR *dir;
+    struct dirent *ent;
+    if ((dir = opendir(path.c_str())) != nullptr) {
+        while ((ent = readdir(dir)) != nullptr) {
+            std::string name = ent->d_name;
+            if (name != "." && name != "..") {
+                if (ent->d_type == DT_DIR) {
+                    dirs.push_back(name);
+                } else {
+                    files.push_back(name);
+                }
+            }
+        }
+        closedir(dir);
+    } else {
+        std::cerr << "Error opening directory " << path << std::endl;
+    }
+
+    result.first = files;
+    result.second = dirs;
+
+    return result;
+}
+#endif
 
 std::vector<std::string> get_all_files(const std::string &dirname)
 {
     std::vector<std::string> allfiles;
     std::vector<std::pair<std::string, std::string>> stack;
     stack.emplace_back(dirname, "");
+#if defined(_WIN32)
+    std::string path_sep = "\\";
+#else
+    std::string path_sep = "/";
+#endif
 
     while (!stack.empty()) {
         auto current = stack.back();
@@ -76,16 +120,12 @@ std::vector<std::string> get_all_files(const std::string &dirname)
         }
 
         for (const auto &dir : dirs) {
-            stack.emplace_back(current_dir + "\\" + dir, relative_path + dir + "\\");
+            stack.emplace_back(current_dir + path_sep + dir, relative_path + dir + path_sep);
         }
     }
 
     return allfiles;
 }
-
-#endif
-
-
 
 
 int main(int argc, char *argv[]) {
