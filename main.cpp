@@ -271,8 +271,6 @@ std::vector<Pattern> description_to_patterns(const std::vector<std::string>& des
         }
         l = to_lower(l); // for case insensitivity
 
-
-
         std::string regex_txt = translate_to_regex_string(l);
         p.TextualOriginalPattern = l;
         p.TextualTranslatedPattern = regex_txt;
