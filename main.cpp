@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <utility>
 #include <regex>
@@ -66,7 +67,6 @@ std::pair<std::vector<std::string>,std::vector<std::string>> get_files_and_dirs(
 #else
 #include <sys/types.h>
 #include <dirent.h>
-#include <fstream>
 
 std::pair<std::vector<std::string>, std::vector<std::string>> get_files_and_dirs(const std::string &dirname) {
     std::pair<std::vector<std::string>, std::vector<std::string>> result;
