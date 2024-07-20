@@ -294,6 +294,20 @@ std::string to_lower(std::string sentence)
     return out;
 }
 
+std::string normalize_separators_in_text(std::string path)
+{
+    std::string result = path;
+    result = replace_all(result, "\\\\", "/");
+    return result;
+}
+
+std::string normalize_separators_in_string(std::string path)
+{
+    std::string result = path;
+    result = replace_all(result, "\\", "/");
+    return result;
+}
+
 std::vector<Pattern> description_to_patterns(const std::vector<std::string>& description)
 {
     std::vector<Pattern> patterns;
@@ -311,6 +325,7 @@ std::vector<Pattern> description_to_patterns(const std::vector<std::string>& des
             l = line.substr(1);
         }
         l = to_lower(l); // for case insensitivity
+        l = normalize_separators_in_text(l); // for unix paths
 
         std::string regex_txt = translate_to_regex_string(l);
         p.TextualOriginalPattern = l;
@@ -330,10 +345,12 @@ std::vector<std::string> match_files(std::vector<std::string> files, std::vector
 
     for (const auto& file : files) {
         bool include = true;
-        std::string lower_case_file = to_lower(file); // for case insensitivity
+        std::string normalized_file_path = to_lower(file); // for case insensitivity
+        normalized_file_path = normalize_separators_in_string(normalized_file_path);
+        
 
         for (const auto& pattern : patterns) {
-            if (std::regex_match(lower_case_file, pattern.Regex)) {
+            if (std::regex_match(normalized_file_path, pattern.Regex)) {
                 if (pattern.Type == eExclude) {
                     include = false;
                 }
