@@ -280,7 +280,7 @@ std::vector<Pattern> description_to_patterns(const std::vector<std::string>& des
     return  patterns;
 }
 
-std::vector<std::string> matched_files(std::vector<std::string> files, std::vector<Pattern> patterns)
+std::vector<std::string> match_files(std::vector<std::string> files, std::vector<Pattern> patterns)
 {
     std::vector<std::string> matches;
     // if a file entry matches no pattern of the exclude type it should be included in the list
@@ -319,7 +319,7 @@ int main(int argc, char *argv[]) {
     std::vector<std::string> files = get_all_files(path);
     std::vector<std::string> patterns_description = read_file(path + path_sep + "filematch.txt");
     std::vector<Pattern> patterns = description_to_patterns(patterns_description);
-    std::vector<std::string> matches = matched_files(files, patterns);
+    std::vector<std::string> matches = match_files(files, patterns);
 
     for(const std::string& file : matches)
     {
